@@ -1,0 +1,11 @@
+../Drivers/CMSIS/Include/core_cm4.h:2064:26:ITM_SendChar	4
+../Core/Src/main.c:101:5:_write	2
+../Core/Src/main.c:116:5:main	1
+../Core/Src/main.c:212:6:SystemClock_Config	3
+../Core/Src/main.c:254:13:MX_GPIO_Init	1
+../Core/Src/main.c:279:6:StartSendTask	1
+../Core/Src/main.c:302:6:StartReceiveTask	1
+../Core/Src/main.c:325:6:StartSend02	1
+../Core/Src/main.c:349:6:StartReceive02	1
+../Core/Src/main.c:374:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:392:6:Error_Handler	1
