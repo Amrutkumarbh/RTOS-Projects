@@ -9,37 +9,125 @@ A collection of hands-on **Real-Time Operating System (RTOS)** projects built us
 
 ---
 
-## 📖 What is RTOS?
+# 🧠 RTOS Projects — FreeRTOS Learning Journey
 
-A **Real-Time Operating System (RTOS)** is a specialized operating system designed to serve real-time applications that process data and events deterministically within strict timing constraints. Unlike general-purpose operating systems, an RTOS guarantees that critical tasks are executed within a defined time window, making it essential in embedded systems, robotics, automotive electronics, medical devices, and industrial automation.
-
-**Key characteristics of an RTOS:**
-- **Determinism** – Predictable and consistent response times
-- **Preemptive Scheduling** – High-priority tasks can preempt lower-priority ones
-- **Inter-Task Communication** – Mechanisms like queues, semaphores, and mutexes enable safe data sharing
-- **Lightweight** – Optimized for resource-constrained microcontrollers
-
-**FreeRTOS** is one of the most widely used open-source RTOS kernels, supporting dozens of microcontroller architectures and trusted in millions of embedded devices worldwide.
+> A hands-on documentation of my journey into Real-Time Operating Systems using **FreeRTOS** on **STM32F407** microcontrollers. Each folder is a standalone project covering a specific RTOS concept — built, tested, and documented as I learn.
 
 ---
 
-## 📁 Project Structure
+## 📌 About This Repository
+
+This repo is not a finished product — it's a **living record of learning**. I add projects daily as I explore FreeRTOS concepts from the ground up. The goal is to build a deep, practical understanding of real-time embedded systems while maintaining clean, well-documented code.
+
+**Platform:** STM32F407 Discovery Board  
+**RTOS:** FreeRTOS (via STM32CubeIDE HAL integration)  
+**Language:** Embedded C  
+**IDE:** STM32CubeIDE
+
+---
+
+## 📚 RTOS — Theory & Core Concepts
+
+Before diving into projects, here's a concise reference for the foundational concepts used throughout this repo.
+
+### What is an RTOS?
+
+A **Real-Time Operating System (RTOS)** is a lightweight OS designed for embedded systems where tasks must execute within strict timing deadlines. Unlike a general-purpose OS (Linux, Windows), an RTOS provides:
+
+- **Deterministic timing** — tasks run when they're supposed to, not when the OS "gets around to it"
+- **Preemptive multitasking** — higher-priority tasks can interrupt lower-priority ones
+- **Minimal footprint** — runs on microcontrollers with kilobytes of RAM
+
+> FreeRTOS is one of the most widely used open-source RTOSes in the embedded industry, supported by STM32 natively through CubeIDE.
+
+---
+
+### 🔷 Core Concepts
+
+#### 1. Tasks
+A **task** in FreeRTOS is similar to a thread. Each task is an independent function with its own:
+- Stack memory
+- Priority level (0 = lowest, configMAX_PRIORITIES-1 = highest)
+- State: **Running**, **Ready**, **Blocked**, **Suspended**
+
+```c
+// Creating a task
+xTaskCreate(vMyTask,        // Task function
+            "MyTask",       // Task name (for debug)
+            128,            // Stack depth (words)
+            NULL,           // Parameters
+            1,              // Priority
+            &xTaskHandle);  // Task handle
+```
+
+#### 2. The Scheduler
+The FreeRTOS **scheduler** decides which task runs at any given moment. It uses a **priority-based preemptive** algorithm:
+- The highest-priority **Ready** task always runs
+- Tasks of equal priority share CPU via **Round-Robin** time-slicing
+- The scheduler runs every **tick** (typically 1ms, configurable via `configTICK_RATE_HZ`)
+
+#### 3. Task States
 
 ```
-RTOS-Projects/
-│
-├── Free_RTOS/                  # FreeRTOS kernel setup and introduction
-├── RTOS_Tasks/                 # Basic task creation and management
-├── RTOS_queues_nopriority/     # Queue-based inter-task communication (no priority)
-├── TASK_Operations/            # Task operations: suspend, resume, delete
-├── Task_Priority_execution/    # Priority-based task scheduling and execution
-├── 06RTOS_Semaphores/          # Binary semaphore for synchronization
-├── 07RTOS_Queue_ISR/           # Queue communication between tasks and ISR
-├── 08RTOS_USERINTERRUPT/       # User-triggered interrupt handling with queues
-├── 09RTOS_prioritty_inv/       # Priority inversion demonstration and analysis
-├── 10RTOS_SEMAPHORE_COUNTER/   # Counting semaphores for resource management
-└── 11RTOS_Mutex/               # Mutex for mutual exclusion and deadlock prevention
+           ┌─────────────────────────────────────┐
+           │                                     ▼
+        [Created] ──► [Ready] ◄──── [Running] ──► [Deleted]
+                         ▲              │
+                         │    (block)   ▼
+                         └──── [Blocked / Suspended]
 ```
+
+| State | Description |
+|---|---|
+| **Running** | Currently executing on the CPU |
+| **Ready** | Waiting for CPU, all dependencies met |
+| **Blocked** | Waiting for an event (delay, queue, semaphore) |
+| **Suspended** | Manually paused via `vTaskSuspend()` |
+
+#### 4. Queues
+A **queue** is a FIFO buffer used to safely pass data **between tasks** or between an **ISR and a task**. It is the primary inter-task communication mechanism in FreeRTOS.
+
+```c
+// Create a queue that holds 10 uint32_t values
+xQueueHandle = xQueueCreate(10, sizeof(uint32_t));
+
+// Send to queue (from a task)
+xQueueSend(xQueueHandle, &data, portMAX_DELAY);
+
+// Receive from queue
+xQueueReceive(xQueueHandle, &receivedData, portMAX_DELAY);
+```
+
+#### 5. Semaphores & Mutexes
+Used for **synchronization** and **resource protection**:
+
+| Type | Use Case |
+|---|---|
+| **Binary Semaphore** | Signal between tasks or ISR→Task |
+| **Counting Semaphore** | Track multiple resource instances |
+| **Mutex** | Protect shared resources (with priority inheritance) |
+
+#### 6. Task Priority & Priority Inversion
+- Higher numerical priority = higher importance
+- **Priority Inversion**: A low-priority task holds a resource needed by a high-priority task — solved using **Mutexes** (not binary semaphores) due to priority inheritance
+
+#### 7. Stack & Heap
+- Each task gets its **own stack** — sized at creation
+- FreeRTOS manages heap using one of 5 memory schemes (`heap_1` through `heap_5`)
+- Stack overflow detection: enable `configCHECK_FOR_STACK_OVERFLOW` in `FreeRTOSConfig.h`
+
+#### 8. `vTaskDelay` vs `vTaskDelayUntil`
+
+```c
+vTaskDelay(pdMS_TO_TICKS(500));           // Delay 500ms from now
+vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(500));  // Delay until fixed period (preferred for periodic tasks)
+```
+
+`vTaskDelayUntil` ensures **consistent execution periods** regardless of how long the task itself took to run.
+
+#### 9. Tick & Time in FreeRTOS
+- The system tick drives the scheduler
+- Use `pdMS_TO_TICKS(ms)` to convert milliseconds to tick counts — never hardcode tick values
 
 ---
 
@@ -75,55 +163,96 @@ RTOS-Projects/
 
 ---
 
-## 🛠️ Getting Started
+### 🔬 Project Highlights
 
-### Prerequisites
+#### `Free_RTOS` — Getting Started
+The starting point of this journey. Covers:
+- Setting up FreeRTOS in STM32CubeIDE
+- Creating and starting the first task
+- Understanding `osKernelStart()` and why code after it never runs
+- UART debug output to observe task execution
 
-- **IDE**: STM32CubeIDE / Keil MDK / VS Code with PlatformIO
-- **RTOS**: FreeRTOS (integrated via STM32CubeMX or manually)
-- **Hardware**: STM32 (or compatible ARM Cortex-M board) *(or any supported MCU)*
-- **Toolchain**: ARM GCC
+#### `RTOS_Tasks` — Working with Multiple Tasks
+Explores how FreeRTOS manages multiple concurrent tasks:
+- Creating tasks with different priorities
+- Observing round-robin scheduling for equal-priority tasks
+- Using `vTaskDelay()` to yield CPU
 
-### Clone the Repository
+#### `Task_Priority_execution` — Preemption in Action
+Demonstrates real preemptive behavior:
+- High-priority task preempts a running low-priority task
+- Visualizing scheduler decisions through UART output
+- Understanding why priority assignment matters in real systems
 
-```bash
-git clone https://github.com/Amrutkumarbh/RTOS-Projects.git
-cd RTOS-Projects
+#### `TASK_Operations` — Task Lifecycle Control
+Hands-on with the full task state machine:
+- `vTaskSuspend()` / `vTaskResume()`
+- `vTaskDelete()` and memory reclamation
+- Task handles and managing tasks from other tasks
+
+#### `RTOS_queues_nopriority` — Inter-Task Communication
+First look at FreeRTOS queues:
+- Creating a queue and passing data between producer/consumer tasks
+- Blocking behavior when queue is full or empty
+- `portMAX_DELAY` vs finite timeout
+
+---
+
+## 🛠️ Setup & How to Use
+
+```
+1. Clone the repository
+   git clone https://github.com/Amrutkumarbh/RTOS-Projects.git
+
+2. Open any project folder in STM32CubeIDE
+   File → Open Projects from File System → Select the project folder
+
+3. Build and flash to STM32F407 Discovery Board
+   Project → Build All → Run → Debug
+
+4. Open a serial terminal (115200 baud) to view UART debug output
 ```
 
-### Running a Project
-
-1. Open the desired project folder in your IDE
-2. Configure the target microcontroller if needed
-3. Build and flash to your hardware
-4. Use a serial monitor to observe task output
+**Requirements:**
+- STM32CubeIDE (v1.x or later)
+- STM32F407 Discovery Board
+- USB-to-Serial adapter (for UART output if not using SWV)
 
 ---
 
-## 📚 References
+## 🗺️ Roadmap
+
+Upcoming topics I plan to explore and document:
+
+- [ ] Semaphores & Mutexes
+- [ ] Software Timers
+- [ ] Event Groups
+- [ ] Stream Buffers & Message Buffers
+- [ ] ISR-safe FreeRTOS APIs (`FromISR` variants)
+- [ ] Stack overflow detection
+- [ ] FreeRTOS + I2C peripheral integration
+- [ ] FreeRTOS + DMA
+- [ ] `configUSE_TRACE_FACILITY` and runtime stats
+
+---
+
+## 📖 References
 
 - [FreeRTOS Official Documentation](https://www.freertos.org/Documentation/RTOS_book.html)
-- [FreeRTOS API Reference](https://www.freertos.org/a00106.html)
-- [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html)
-- [Mastering the FreeRTOS Real Time Kernel – Free PDF](https://www.freertos.org/Documentation/161204_Mastering_the_FreeRTOS_Real_Time_Kernel-A_Hands-On_Tutorial_Guide.pdf)
+- [Mastering the FreeRTOS Kernel — Free PDF](https://www.freertos.org/Documentation/161204_Mastering_the_FreeRTOS_Real_Time_Kernel-A_Hands-On_Tutorial_Guide.pdf)
+- [STM32CubeIDE + FreeRTOS Setup Guide](https://wiki.st.com/stm32mcu/wiki/Introduction_to_FreeRTOS)
+- [Shawn Hymel's FreeRTOS Series (YouTube)](https://www.youtube.com/playlist?list=PLEBQazB0HUyQ4hAPU1cJED6t3DU0h34bz)
 
 ---
 
-## 🤝 Contributing
+## 👤 About
 
-Contributions are welcome! If you'd like to add a new RTOS project or improve an existing one:
-
-1. Fork this repository
-2. Create a new branch: `git checkout -b feature/your-project-name`
-3. Commit your changes: `git commit -m "Add: your project description"`
-4. Push to the branch: `git push origin feature/your-project-name`
-5. Open a Pull Request
+**Amrut Kumar** — Embedded systems enthusiast learning RTOS, STM32, and low-level C from the ground up.  
+📍 Currently exploring: FreeRTOS on STM32F407  
+🔗 [STM32 Projects Repo](https://github.com/Amrutkumarbh) | [LinkedIn](#)
 
 ---
 
-## 👤 Author
-
-**Amrutkumarbh**  
-📌 [GitHub Profile](https://github.com/Amrutkumarbh)
-
-> *"Understanding RTOS is the gateway to building reliable, real-time embedded systems."*
+<div align="center">
+  <i>Built one project at a time — understanding first, code second.</i>
+</div> *"Understanding RTOS is the gateway to building reliable, real-time embedded systems."*
