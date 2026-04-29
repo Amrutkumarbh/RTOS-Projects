@@ -126,12 +126,4 @@ Contributions are welcome! If you'd like to add a new RTOS project or improve an
 **Amrutkumarbh**  
 📌 [GitHub Profile](https://github.com/Amrutkumarbh)
 
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
 > *"Understanding RTOS is the gateway to building reliable, real-time embedded systems."*
